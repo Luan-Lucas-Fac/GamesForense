@@ -1,0 +1,233 @@
+/* Reset e estilos base */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Courier New', monospace;
+}
+
+body {
+    background-color: #0a0a0a;
+    color: #00ff00;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+}
+
+/* Efeito Matrix */
+.matrix-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    opacity: 0.1;
+    pointer-events: none;
+}
+
+/* Container principal */
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    margin: 0;
+    overflow-x: hidden;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    width: 100%;
+    overflow-y: auto;
+    padding-bottom: 80px; /* Espaço para o footer */
+}
+
+/* Cabeçalho */
+header {
+    text-align: center;
+    margin-bottom: 3rem;
+    padding: 1rem;
+    position: relative;
+}
+
+header h1 {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00;
+    letter-spacing: 2px;
+}
+
+header p {
+    color: #4CAF50;
+    font-size: 1.1rem;
+}
+
+/* Grid de jogos */
+.games-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 2rem;
+    padding: 1rem;
+}
+
+/* Cartão do jogo */
+.game-card {
+    background: rgba(10, 20, 10, 0.5);
+    border-radius: 10px;
+    padding: 1.5rem;
+    text-align: center;
+    text-decoration: none;
+    color: #00ff00;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(0, 255, 0, 0.2);
+}
+
+.game-card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+    z-index: 10;
+}
+
+.image-container {
+    position: relative;
+    width: 100%;
+    height: 200px; /* Altura fixa para todas as imagens */
+    margin-bottom: 1rem;
+    overflow: hidden;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 10, 0, 0.15); /* Fundo mais escuro e sutil */
+    padding: 10px;
+    box-sizing: border-box;
+    /* Removida a borda fixa */
+}
+
+.image-container img {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    transition: transform 0.5s ease;
+    position: relative;
+    z-index: 1;
+}
+
+.game-card:hover .image-container img {
+    transform: scale(1.1);
+}
+
+/* Efeito de néon */
+.neon-border {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 1px solid #00ff00;
+    border-radius: 12px;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.5), 
+                0 0 20px rgba(0, 200, 0, 0.4),
+                0 0 30px rgba(0, 150, 0, 0.3);
+    opacity: 0;
+    transition: all 0.3s ease;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.game-card:hover .neon-border {
+    opacity: 0.9;
+    animation: neonPulse 1.5s infinite alternate;
+}
+
+@keyframes neonPulse {
+    0% {
+        box-shadow: 0 0 10px rgba(0, 255, 0, 0.6), 
+                    0 0 20px rgba(0, 200, 0, 0.5),
+                    0 0 30px rgba(0, 150, 0, 0.4);
+        border-color: #00ff00;
+    }
+    100% {
+        box-shadow: 0 0 20px rgba(0, 255, 0, 0.8), 
+                    0 0 40px rgba(0, 200, 0, 0.6),
+                    0 0 60px rgba(0, 150, 0, 0.4);
+        border-color: #00ff88;
+    }
+}
+
+/* Efeito de rotação do néon */
+@keyframes rotateNeon {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Efeito de pulso aleatório */
+@keyframes randomPulse {
+    0%, 100% {
+        opacity: 0.7;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.05);
+    }
+}
+
+/* Rodapé */
+.rodape {
+    width: 100%;
+    text-align: center;
+    padding: 15px 0;
+    color: #00ff80;
+    font-family: monospace;
+    font-size: 14px;
+    background: rgba(0, 0, 0, 0.6);
+    border-top: 1px solid rgba(0,255,80,0.3);
+    margin-top: 40px;
+}
+
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .games-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+    
+    header h1 {
+        font-size: 2rem;
+    }
+}
+
+/* Animações */
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+/* Efeito de digitação para o título */
+@keyframes typing {
+    from { width: 0 }
+    to { width: 100% }
+}
+
+@keyframes blink-caret {
+    from, to { border-color: transparent }
+    50% { border-color: #00ff00; }
+}
