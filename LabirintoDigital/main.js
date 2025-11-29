@@ -888,7 +888,7 @@
     btnNewPage.addEventListener('click', (e) => {
       e.preventDefault();
       // Link vazio conforme solicitado
-      window.location.href = '#';
+      window.location.href = '../index.html';
     });
   }
 
