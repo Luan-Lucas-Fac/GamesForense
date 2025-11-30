@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Jogo da Memória - Hacker vs Forense</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    /* Estilos gerais do corpo */
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: radial-gradient(circle at center, #000, #111); /* fundo degradê */
+      color: #fff;
+      height: 100vh;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+
+    /* Título principal */
+    h1 {
+      text-shadow: 0 0 10px #0ff;
+      margin: 0;
+    }
+
+    /* Container das cartas */
+    #game {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); /* responsivo */
+      gap: 15px;
+      margin-top: 20px;
+      width: min(600px, 100%);
+    }
+
+    /* Estilo das cartas */
+    .card {
+      width: 100%;
+      height: 110px;
+      perspective: 600px; /* efeito 3D ao virar */
+      cursor: pointer;
+    }
+
+    /* Container interno da carta para efeito de virar */
+    .inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transform-style: preserve-3d;
+      transition: transform 0.6s;
+    }
+
+    /* Quando a carta estiver virada */
+    .flipped .inner {
+      transform: rotateY(180deg);
+    }
+
+    /* Frente e verso da carta */
+    .front, .back {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden; /* oculta o lado traseiro quando virada */
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      user-select: none;
+    }
+
+    /* Frente da carta */
+    .front {
+      background: #0ff;
+      color: #000;
+      transform: rotateY(180deg); /* começa escondida atrás */
+      box-shadow: 0 0 20px #0ff;
+    }
+
+    /* Verso da carta */
+    .back {
+      background: #333;
+      box-shadow: 0 0 10px #0ff;
+      z-index: 1;
+      font-size: 1.6rem;
+    }
+
+    /* Status do jogo */
+    #status {
+      margin-top: 15px;
+      font-size: 18px;
+      color: #0ff;
+    }
+
+    /* Overlay para efeitos de confete ou derrota */
+    #overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    /* Confetes */
+    .confetti {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      opacity: 0.9;
+    }
+
+    /* Efeito visual de vitória */
+    .victory {
+      animation: glow 1s infinite alternate;
+    }
+
+    @keyframes glow {
+      from { box-shadow: 0 0 20px #0ff; transform: scale(1); }
+      to   { box-shadow: 0 0 50px #0ff; transform: scale(1.03); }
+    }
+  </style>
+</head>
+<body>
+  <h1>🕹 Hacker vs Forense 🧠</h1>
+  <div id="status"></div>
+  <div id="game" aria-live="polite"></div>
+  <div id="overlay"></div>
+
+  <script>
+    /********** VARIÁVEIS PRINCIPAIS **********/
+    // Lista de 9 emojis para os pares, substituindo </> por 🗂️
+    const emojis = ["👾", "👨🏻‍💻", "💀", "🕵🏻", "👤", "👁", "👮🏼", "💻", "🗂️"];
+    
+    let cards = [...emojis, ...emojis]; // duplicar cada emoji para formar pares
+    let flipped = []; // cartas atualmente viradas
+    let matched = []; // cartas que já formaram par
+    let errors = 0;   // número de erros cometidos
+    const maxErrors = 8; // limite de erros
+    const totalPairs = emojis.length; // total de pares = 9
+
+    // Seleciona elementos HTML
+    const gameDiv = document.getElementById("game");
+    const statusDiv = document.getElementById("status");
+    const overlay = document.getElementById("overlay");
+
+    // Embaralhar cartas aleatoriamente
+    cards.sort(() => 0.5 - Math.random());
+
+    /********** FUNÇÃO PARA ATUALIZAR O STATUS **********/
+    function updateStatus() {
+      statusDiv.textContent = `Erros: ${errors}/${maxErrors} | Pares encontrados: ${matched.length / 2}/${totalPairs}`;
+    }
+
+    /********** FUNÇÃO PARA CRIAR UMA CARTA **********/
+    function createCard(emoji) {
+      const card = document.createElement("div");
+      card.classList.add("card");
+      card.setAttribute("role", "button");
+      card.setAttribute("aria-label", "Carta do jogo");
+      card.innerHTML = `
+        <div class="inner">
+          <div class="front">${emoji}</div>
+          <div class="back">❓</div>
+        </div>
+      `;
+      // Ao clicar, chama a função de virar carta
+      card.addEventListener("click", () => flipCard(card, emoji));
+      gameDiv.appendChild(card);
+    }
+
+    /********** FUNÇÃO DE VIRAR CARTA **********/
+    function flipCard(card, emoji) {
+      // Se já há 2 cartas viradas ou a carta já está virada/match, não faz nada
+      if (flipped.length === 2 || matched.includes(card) || card.classList.contains("flipped")) return;
+
+      card.classList.add("flipped"); // vira a carta
+      flipped.push({ card, emoji }); // adiciona ao array de viradas
+
+      // Verifica se duas cartas foram viradas
+      if (flipped.length === 2) {
+        const [first, second] = flipped;
+        if (first.emoji === second.emoji) {
+          // ACERTO: mantém as cartas viradas
+          matched.push(first.card, second.card);
+          first.card.classList.add("flipped");
+          second.card.classList.add("flipped");
+
+          // efeito visual de vitória breve
+          first.card.querySelector('.front').classList.add('victory');
+          second.card.querySelector('.front').classList.add('victory');
+          setTimeout(() => {
+            first.card.querySelector('.front').classList.remove('victory');
+            second.card.querySelector('.front').classList.remove('victory');
+          }, 1000);
+
+          flipped = []; // limpa cartas viradas
+          updateStatus();
+          if (matched.length === cards.length) victory(); // verifica vitória
+        } else {
+          // ERRO: vira as cartas de volta após 1s
+          errors++;
+          updateStatus();
+          setTimeout(() => {
+            first.card.classList.remove("flipped");
+            second.card.classList.remove("flipped");
+            flipped = [];
+            if (errors >= maxErrors) defeat(); // verifica derrota
+          }, 1000);
+        }
+      }
+    }
+
+    /********** FUNÇÃO DE VITÓRIA **********/
+    function victory() {
+      statusDiv.textContent = "🏆 Parabéns! Você venceu!";
+      confettiEffect(); // chama confetes
+      setTimeout(() => resetGame(), 15000); // reinicia após 15s
+    }
+
+    /********** FUNÇÃO DE DERROTA **********/
+    function defeat() {
+      statusDiv.textContent = "💀 Você perdeu! Tente novamente.";
+      overlay.style.background = "rgba(255,0,0,0.25)";
+      setTimeout(() => resetGame(), 4000); // reinicia após 4s
+    }
+
+    /********** FUNÇÃO PARA REINICIAR O JOGO **********/
+    function resetGame() {
+      overlay.innerHTML = "";
+      overlay.style.background = "none";
+      gameDiv.innerHTML = "";
+      cards = [...emojis, ...emojis]; // duplica emojis novamente
+      cards.sort(() => 0.5 - Math.random()); // embaralha
+      flipped = [];
+      matched = [];
+      errors = 0;
+      cards.forEach(createCard); // recria as cartas no HTML
+      updateStatus();
+    }
+
+    /********** FUNÇÃO DE CONFETES **********/
+    function confettiEffect() {
+      const confettis = [];
+      for (let i = 0; i < 180; i++) {
+        const div = document.createElement("div");
+        div.className = "confetti";
+        div.style.background = `hsl(${Math.random() * 360},100%,50%)`;
+        div.style.left = Math.random() * window.innerWidth + "px";
+        div.style.top = "-10px";
+        div.speed = 2 + Math.random() * 5;
+        overlay.appendChild(div);
+        confettis.push(div);
+      }
+
+      function animateConfetti() {
+        confettis.forEach(c => {
+          c.style.top = (parseFloat(c.style.top) + c.speed) + "px";
+          if (parseFloat(c.style.top) > window.innerHeight) c.style.top = "-10px";
+        });
+        requestAnimationFrame(animateConfetti);
+      }
+
+      animateConfetti();
+
+      // Fade out após 15s
+      setTimeout(() => {
+        overlay.style.transition = "opacity 2s";
+        overlay.style.opacity = "0";
+        setTimeout(() => {
+          overlay.innerHTML = "";
+          overlay.style.opacity = "1";
+        }, 2000);
+      }, 15000);
+    }
+
+    /********** INICIALIZAÇÃO DO JOGO **********/
+    cards.forEach(createCard);
+    updateStatus();
+  </script>
+</body>
+</html>

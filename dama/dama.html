@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Damas Emoji — Hacker vs Agente</title>
+  <style>
+    :root {
+      --bg: #1f1f1f;
+      --board-border: #00f5ff;
+      --light-cell: #f0d9b5;
+      --dark-cell: #b58863;
+      --accent: #ffd166;
+      --win-color: #4CAF50;
+      --lose-color: #f44336;
+    }
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: Segoe UI, Roboto, Arial;
+      background: var(--bg);
+      color: #fff;
+    }
+    .wrap {
+      max-width: 820px;
+      margin: 18px auto;
+      padding: 6px;
+      text-align: center;
+    }
+    h1 {
+      font-size: 34px;
+      margin: 8px 0 18px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .controls select, .controls button {
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: none;
+      background: #272727;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    /* Tabuleiro: 8x8 com padrão de damas */
+    .board-wrap {
+      background: transparent;
+      padding: 8px;
+      border: 6px solid var(--board-border);
+      border-radius: 8px;
+      display: inline-block;
+      position: relative;
+    }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(8, 64px);
+      grid-template-rows: repeat(8, 64px);
+      gap: 0;
+      background: transparent;
+    }
+    .cell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 34px;
+      user-select: none;
+      cursor: pointer;
+      position: relative;
+    }
+    .cell.small {
+      font-size: 26px;
+    }
+
+    /* Cores das células do tabuleiro */
+    .cell.light {
+      background-color: var(--light-cell);
+    }
+    .cell.dark {
+      background-color: var(--dark-cell);
+    }
+
+    .cell.highlight {
+      outline: 3px solid rgba(255, 255, 255, 0.12);
+      box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.02);
+    }
+    .cell.move {
+      box-shadow: 0 0 0 3px rgba(0, 255, 170, 0.708) inset;
+    }
+    .cell.capture {
+      box-shadow: 0 0 0 3px rgba(232, 9, 9, 0.786) inset;
+    }
+    .cell.required-capture {
+      box-shadow: 0 0 0 3px rgba(255, 0, 0, 0.3) inset;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 3px rgba(227, 4, 4, 0.875) inset; }
+      50% { box-shadow: 0 0 0 3px rgba(255, 0, 0, 0.6) inset; }
+      100% { box-shadow: 0 0 0 3px rgba(255, 0, 0, 0.845) inset; }
+    }
+
+    .info {
+      margin-top: 12px;
+    }
+    .log {
+      max-height: 120px;
+      overflow: auto;
+      background: #111;
+      padding: 8px;
+      border-radius: 6px;
+      text-align: left;
+      font-size: 13px;
+    }
+    .footer {
+      margin-top: 10px;
+      font-size: 13px;
+      color: #bbb;
+    }
+
+    /* Efeitos de vitória e derrota */
+    .win-effect {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1000;
+      animation: confettiRain 10s forwards;
+    }
+
+    .lose-effect {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(244, 67, 54, 0.3);
+      pointer-events: none;
+      z-index: 1000;
+      animation: blinkRed 10s forwards;
+    }
+
+    @keyframes confettiRain {
+      0% {
+        opacity: 1;
+      }
+      90% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+      }
+    }
+
+    @keyframes blinkRed {
+      0%, 50% {
+        opacity: 0.3;
+      }
+      25%, 75% {
+        opacity: 0.6;
+      }
+      100% {
+        opacity: 0;
+      }
+    }
+
+    .confetti {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background-color: #f00;
+      opacity: 0.7;
+      animation: fall linear forwards;
+    }
+
+    @keyframes fall {
+      to {
+        transform: translateY(100vh) rotate(360deg);
+      }
+    }
+
+    .piece.king::after {
+      content: "👑";
+      position: absolute;
+      font-size: 16px;
+      top: 2px;
+      right: 2px;
+    }
+
+    @media (max-width: 640px) {
+      .board {
+        grid-template-columns: repeat(8, 40px);
+        grid-template-rows: repeat(8, 40px);
+      }
+      .cell {
+        font-size: 20px;
+      }
+      .piece.king::after {
+        font-size: 10px;
+        top: 1px;
+        right: 1px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Damas Emoji — Hacker vs Agente</h1>
+
+    <div class="controls">
+      <label style="display:flex;gap:8px;align-items:center">
+        Jogar como:
+        <select id="sideSelect">
+          <option value="agent">Agente Forense 🕵🏻</option>
+          <option value="hacker">Hacker 👾</option>
+        </select>
+      </label>
+      <label style="display:flex;gap:8px;align-items:center">
+        Dificuldade:
+        <select id="difficultySelect">
+          <option value="easy">Fácil</option>
+          <option value="normal" selected>Normal</option>
+          <option value="hard">Difícil</option>
+        </select>
+      </label>
+      <button id="newBtn">Novo Jogo</button>
+      <button id="undoBtn">Desfazer (1 passo)</button>
+      <button id="resignBtn">Desistir</button>
+    </div>
+
+    <div class="board-wrap">
+      <div id="board" class="board" role="grid" aria-label="Tabuleiro de damas"></div>
+      
+    </div>
+
+    <div class="info">
+      <div id="status">Status: aguardando novo jogo</div>
+      <div class="log" id="log"></div>
+      <div class="footer">
+        Regras: Peças se movem apenas nas casas escuras. Capturas são obrigatórias. 
+        Peças viram damas (com 👑) quando alcançam o lado oposto do tabuleiro.
+      </div>
+    </div>
+    
+  </div>
+
+  <script>
+    // =====================
+    // Jogo de Damas com emojis
+    // - Cada peça tem: side ('agent' ou 'hacker') e isKing (booleano)
+    // - Movimento segue regras de damas internacionais
+    // - Exibe emojis por lado: agent -> 🕵🏻, hacker -> 👾
+    // - IA joga seguindo as regras de damas
+    // =====================
+
+    // Helpers
+    const $ = id => document.getElementById(id);
+    const log = msg => {const el=$('log'); el.innerHTML = msg + '<br>' + el.innerHTML; }
+
+    // Configurações e estado
+    const EMOJI = {agent:'🕵🏻', hacker:'👾'};
+    let boardEl = $('board');
+    let playerSide = 'agent';
+    let gameState = null;
+    let selected = null;
+    let history = [];
+    let difficulty = 'normal';
+    let forcedCapturePiece = null;
+
+    // Cria células do tabuleiro (8x8) com padrão de damas
+    function createBoardCells(){
+      boardEl.innerHTML = '';
+      for(let r=0;r<8;r++){
+        for(let c=0;c<8;c++){
+          const cell = document.createElement('div');
+          // Alterna entre células claras e escuras (apenas escuras são jogáveis)
+          cell.className = 'cell ' + ((r + c) % 2 === 0 ? 'light' : 'dark');
+          cell.dataset.r = r; 
+          cell.dataset.c = c;
+          cell.id = `cell-${r}-${c}`;
+          cell.addEventListener('click', onCellClick);
+          boardEl.appendChild(cell);
+        }
+      }
+    }
+
+    // Inicializa posição padrão de damas
+    function initGame(){
+      // Matriz 8x8: cada célula ou null ou {side:'agent'|'hacker', isKing:false}
+      const g = Array.from({length: 8}, () => Array(8).fill(null));
+      
+      // Posiciona peças do hacker (topo)
+      for(let r=0; r<3; r++){
+        for(let c=0; c<8; c++){
+          if((r + c) % 2 === 1){ // Apenas casas escuras
+            g[r][c] = {side: 'hacker', isKing: false};
+          }
+        }
+      }
+      
+      // Posiciona peças do agent (base)
+      for(let r=5; r<8; r++){
+        for(let c=0; c<8; c++){
+          if((r + c) % 2 === 1){ // Apenas casas escuras
+            g[r][c] = {side: 'agent', isKing: false};
+          }
+        }
+      }
+      
+      gameState = {board: g, turn: 'agent'};
+      selected = null; 
+      history = [];
+      forcedCapturePiece = null;
+      render();
+      $('status').innerText = 'Status: jogo iniciado. Jogador: ' + (playerSide==='agent' ? 'Agente 🕵🏻' : 'Hacker 👾');
+      log('Novo jogo iniciado. ' + (playerSide==='agent' ? 'Você é Agente 🕵🏻' : 'Você é Hacker 👾'));
+      checkForcedCaptures();
+    }
+
+    // Renderiza o tabuleiro na tela
+    function render(){
+      for(let r=0;r<8;r++){
+        for(let c=0;c<8;c++){
+          const cell = $(`cell-${r}-${c}`);
+          const piece = gameState.board[r][c];
+          cell.innerText = '';
+          cell.classList.remove('highlight', 'move', 'capture', 'required-capture', 'piece', 'king');
+          
+          if(piece){
+            // Mostra emoji de acordo com o lado
+            const emoji = piece.side === 'agent' ? EMOJI.agent : EMOJI.hacker;
+            cell.innerText = emoji;
+            cell.classList.add('piece');
+            if(piece.isKing) {
+              cell.classList.add('king');
+            }
+            cell.title = piece.side + (piece.isKing ? ' (Dama)' : '');
+          } else {
+            cell.title = '';
+          }
+        }
+      }
+      
+      // Destaca peça com captura obrigatória
+      if(forcedCapturePiece) {
+        const cell = $(`cell-${forcedCapturePiece[0]}-${forcedCapturePiece[1]}`);
+        if(cell) cell.classList.add('required-capture');
+      }
+    }
+
+    // Verifica se as coordenadas estão dentro do tabuleiro
+    function inside(r,c){ return r>=0 && r<8 && c>=0 && c<8 }
+
+    // Gera todos os movimentos possíveis para uma peça
+    function genMovesFor(r, c) {
+      const piece = gameState.board[r][c];
+      if(!piece) return {moves: [], captures: []};
+
+      const moves = [];
+      const captures = [];
+      const enemy = piece.side === 'agent' ? 'hacker' : 'agent';
+      
+      // Direções baseadas no tipo de peça
+      let directions = [];
+      if(piece.isKing) {
+        // Damas podem se mover em todas as 4 diagonais
+        directions = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+      } else {
+        // Peças normais se movem apenas para frente (relativo ao lado)
+        directions = piece.side === 'agent' ? [[-1, -1], [-1, 1]] : [[1, -1], [1, 1]];
+      }
+
+      // Verifica movimentos simples
+      for(const [dr, dc] of directions) {
+        const nr = r + dr, nc = c + dc;
+        if(inside(nr, nc) && !gameState.board[nr][nc] && (nr + nc) % 2 === 1) {
+          moves.push([nr, nc, []]); // [destino_r, destino_c, peças capturadas]
+        }
+      }
+
+      // Verifica capturas (movimento obrigatório)
+      for(const [dr, dc] of directions) {
+        const nr = r + dr, nc = c + dc;
+        const nr2 = r + 2*dr, nc2 = c + 2*dc;
+        
+        if(inside(nr, nc) && inside(nr2, nc2) && 
+           gameState.board[nr][nc] && 
+           gameState.board[nr][nc].side === enemy &&
+           !gameState.board[nr2][nc2] &&
+           (nr2 + nc2) % 2 === 1) {
+          
+          captures.push([nr2, nc2, [[nr, nc]]]); // [destino, [peças capturadas]]
+          
+          // Para damas: capturas múltiplas
+          if(piece.isKing) {
+            findMultipleCaptures(r, c, [[nr, nc]], captures, piece.side);
+          }
+        }
+      }
+
+      return {moves, captures};
+    }
+
+    // Encontra capturas múltiplas para damas
+    function findMultipleCaptures(startR, startC, capturedSoFar, results, side) {
+      const directions = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+      const enemy = side === 'agent' ? 'hacker' : 'agent';
+      
+      for(const [dr, dc] of directions) {
+        // Encontra uma peça inimiga
+        let r = startR, c = startC;
+        let foundEnemy = null;
+        
+        while(true) {
+          r += dr;
+          c += dc;
+          if(!inside(r, c)) break;
+          
+          if(gameState.board[r][c]) {
+            if(gameState.board[r][c].side === enemy && 
+               !capturedSoFar.some(([cr, cc]) => cr === r && cc === c)) {
+              foundEnemy = [r, c];
+            }
+            break;
+          }
+        }
+        
+        if(foundEnemy) {
+          // Verifica se pode pular sobre a peça inimiga
+          const [er, ec] = foundEnemy;
+          const landR = er + dr, landC = ec + dc;
+          
+          if(inside(landR, landC) && !gameState.board[landR][landC] && 
+             (landR + landC) % 2 === 1) {
+            
+            const newCaptured = [...capturedSoFar, [er, ec]];
+            results.push([landR, landC, newCaptured]);
+            
+            // Continua buscando mais capturas
+            findMultipleCaptures(landR, landC, newCaptured, results, side);
+          }
+        }
+      }
+    }
+
+    // Verifica se há capturas obrigatórias para o jogador atual
+    function checkForcedCaptures() {
+      const currentSide = gameState.turn;
+      forcedCapturePiece = null;
+      
+      for(let r=0; r<8; r++){
+        for(let c=0; c<8; c++){
+          const piece = gameState.board[r][c];
+          if(piece && piece.side === currentSide) {
+            const {captures} = genMovesFor(r, c);
+            if(captures.length > 0) {
+              forcedCapturePiece = [r, c];
+              return;
+            }
+          }
+        }
+      }
+    }
+
+    // Verifica turno do jogador e IA
+    function onCellClick(e){
+      const r = parseInt(e.currentTarget.dataset.r), c = parseInt(e.currentTarget.dataset.c);
+      
+      // Só células escuras são jogáveis
+      if((r + c) % 2 === 0) return;
+      
+      const piece = gameState.board[r][c];
+      
+      // Só permite seleção se turno é de quem controla o UI
+      if(gameState.turn === playerSide){
+        if(selected){
+          // Se houver seleção, tenta mover para aqui
+          const [sr, sc] = selected;
+          const {moves, captures} = genMovesFor(sr, sc);
+          
+          // Verifica se é um movimento válido
+          let isValidMove = false;
+          let isCapture = false;
+          let capturePath = [];
+          
+          // Primeiro verifica capturas (obrigatórias)
+          if(captures.length > 0) {
+            for(const [tr, tc, path] of captures) {
+              if(tr === r && tc === c) {
+                isValidMove = true;
+                isCapture = true;
+                capturePath = path;
+                break;
+              }
+            }
+          }
+          
+          // Se não há capturas obrigatórias, verifica movimentos simples
+          if(!isValidMove && captures.length === 0) {
+            for(const [tr, tc] of moves) {
+              if(tr === r && tc === c) {
+                isValidMove = true;
+                break;
+              }
+            }
+          }
+          
+          if(isValidMove) {
+            makeMove(sr, sc, r, c, isCapture, capturePath);
+            selected = null;
+            clearHighlights();
+            render();
+            maybeAIMove();
+            return;
+          }
+          
+          // Se clicar em uma peça sua diferente, troca seleção
+          if(piece && piece.side === playerSide) {
+            // Só permite selecionar peças com movimentos válidos
+            const {moves, captures} = genMovesFor(r, c);
+            if(moves.length > 0 || captures.length > 0) {
+              selected = [r, c];
+              highlightMoves(r, c);
+            }
+          } else {
+            selected = null;
+            clearHighlights();
+          }
+        } else {
+          // Sem seleção, se clicar numa peça sua, seleciona
+          if(piece && piece.side === playerSide) {
+            // Só permite selecionar peças com movimentos válidos
+            const {moves, captures} = genMovesFor(r, c);
+            if(moves.length > 0 || captures.length > 0) {
+              selected = [r, c];
+              highlightMoves(r, c);
+            }
+          }
+        }
+      }
+    }
+
+    function clearHighlights(){ 
+      document.querySelectorAll('.cell').forEach(n => n.classList.remove('highlight','move','capture')); 
+    }
+
+    // Mostra movimentos possíveis para uma peça
+    function highlightMoves(r, c) {
+      clearHighlights(); 
+      const cell = $(`cell-${r}-${c}`); 
+      if(!cell) return; 
+      
+      cell.classList.add('highlight'); 
+      const {moves, captures} = genMovesFor(r, c);
+      
+      // Destaca capturas (prioridade)
+      captures.forEach(([tr, tc]) => {
+        const el = $(`cell-${tr}-${tc}`);
+        if(el) el.classList.add('capture');
+      });
+      
+      // Destaca movimentos simples (apenas se não houver capturas)
+      if(captures.length === 0) {
+        moves.forEach(([tr, tc]) => {
+          const el = $(`cell-${tr}-${tc}`);
+          if(el) el.classList.add('move');
+        });
+      }
+    }
+
+    // Executa um movimento
+    function makeMove(sr, sc, tr, tc, isCapture = false, capturePath = []) {
+      const piece = gameState.board[sr][sc];
+      if(!piece) return;
+
+      // Salva histórico para desfazer
+      history.push(JSON.parse(JSON.stringify(gameState)));
+      
+      // Move a peça
+      gameState.board[tr][tc] = piece;
+      gameState.board[sr][sc] = null;
+      
+      // Remove peças capturadas
+      if(isCapture) {
+        capturePath.forEach(([cr, cc]) => {
+          gameState.board[cr][cc] = null;
+        });
+      }
+      
+      // Promoção a dama
+      if(!piece.isKing) {
+        if((piece.side === 'agent' && tr === 0) || (piece.side === 'hacker' && tr === 7)) {
+          piece.isKing = true;
+          log(`${piece.side} promovido a dama!`);
+        }
+      }
+      
+      // Verifica se há mais capturas possíveis com a mesma peça
+      let hasMoreCaptures = false;
+      if(isCapture) {
+        const {captures} = genMovesFor(tr, tc);
+        hasMoreCaptures = captures.length > 0;
+      }
+      
+      // Troca turno apenas se não houver mais capturas
+      if(!hasMoreCaptures) {
+        gameState.turn = (gameState.turn === 'agent' ? 'hacker' : 'agent');
+        checkForcedCaptures();
+      }
+      
+      render();
+      
+      // Log do movimento
+      let moveLog = `${piece.side} de (${sr},${sc}) -> (${tr},${tc})`;
+      if(isCapture) {
+        moveLog += ` capturou ${capturePath.length} peça(s)`;
+      }
+      if(piece.isKing) {
+        moveLog += ' [DAMA]';
+      }
+      log(moveLog);
+      
+      $('status').innerText = `Status: turno de ${gameState.turn}${gameState.turn === playerSide ? ' — sua vez.' : ' — IA jogando...'}`;
+      
+      // Verifica se o jogo terminou
+      checkGameEnd();
+    }
+
+    // Verifica se o jogo terminou
+    function checkGameEnd() {
+      let agentPieces = 0;
+      let hackerPieces = 0;
+      let agentHasMoves = false;
+      let hackerHasMoves = false;
+      
+      // Conta peças e verifica movimentos possíveis
+      for(let r=0; r<8; r++){
+        for(let c=0; c<8; c++){
+          const piece = gameState.board[r][c];
+          if(piece) {
+            if(piece.side === 'agent') {
+              agentPieces++;
+              const {moves, captures} = genMovesFor(r, c);
+              if(moves.length > 0 || captures.length > 0) agentHasMoves = true;
+            } else {
+              hackerPieces++;
+              const {moves, captures} = genMovesFor(r, c);
+              if(moves.length > 0 || captures.length > 0) hackerHasMoves = true;
+            }
+          }
+        }
+      }
+      
+      // Verifica condições de vitória
+      if(agentPieces === 0 || !agentHasMoves) {
+        endGame('hacker'); // Hacker venceu
+      } else if(hackerPieces === 0 || !hackerHasMoves) {
+        endGame('agent'); // Agente venceu
+      }
+    }
+
+    // Finaliza o jogo com efeitos visuais
+    function endGame(winner) {
+      if(winner === playerSide) {
+        // Jogador venceu - efeito de confete
+        createConfetti();
+        log('🎉 Parabéns! Você venceu! 🎉');
+        $('status').innerText = 'Status: Você venceu!';
+      } else {
+        // Jogador perdeu - efeito vermelho piscante
+        createLoseEffect();
+        log('💀 Você perdeu! Tente novamente. 💀');
+        $('status').innerText = 'Status: Você perdeu!';
+      }
+      
+      // Reinicia o jogo após 10 segundos
+      setTimeout(() => {
+        initGame();
+        // Se jogador escolheu ser hacker e for turno do agent, IA joga primeiro
+        if(gameState.turn !== playerSide) maybeAIMove();
+      }, 10000);
+    }
+
+    // Cria efeito de confete para vitória
+    function createConfetti() {
+      const confettiContainer = document.createElement('div');
+      confettiContainer.className = 'win-effect';
+      document.body.appendChild(confettiContainer);
+      
+      // Cria múltiplos confetes
+      for(let i = 0; i < 150; i++) {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti';
+        
+        // Posição aleatória no topo
+        confetti.style.left = Math.random() * 100 + 'vw';
+        confetti.style.top = '-10px';
+        
+        // Cor aleatória
+        const colors = ['#f00', '#0f0', '#00f', '#ff0', '#f0f', '#0ff'];
+        confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        
+        // Tamanho aleatório
+        const size = Math.random() * 10 + 5;
+        confetti.style.width = size + 'px';
+        confetti.style.height = size + 'px';
+        
+        // Duração e delay aleatórios
+        const duration = Math.random() * 3 + 7;
+        const delay = Math.random() * 5;
+        confetti.style.animationDuration = duration + 's';
+        confetti.style.animationDelay = delay + 's';
+        
+        confettiContainer.appendChild(confetti);
+      }
+      
+      // Remove o container após a animação
+      setTimeout(() => {
+        document.body.removeChild(confettiContainer);
+      }, 10000);
+    }
+
+    // Cria efeito vermelho piscante para derrota
+    function createLoseEffect() {
+      const loseEffect = document.createElement('div');
+      loseEffect.className = 'lose-effect';
+      document.body.appendChild(loseEffect);
+      
+      // Remove o efeito após a animação
+      setTimeout(() => {
+        document.body.removeChild(loseEffect);
+      }, 10000);
+    }
+
+    // IA: escolhe movimento seguindo as regras de damas
+    function aiMakeMove(){
+      const side = gameState.turn;
+      const allMoves = [];
+      const allCaptures = [];
+      
+      // Coleta todos os movimentos possíveis
+      for(let r=0; r<8; r++){
+        for(let c=0; c<8; c++){
+          const piece = gameState.board[r][c];
+          if(piece && piece.side === side){
+            const {moves, captures} = genMovesFor(r, c);
+            
+            // Capturas têm prioridade
+            captures.forEach(capture => {
+              allCaptures.push({
+                from: [r, c],
+                to: [capture[0], capture[1]],
+                captures: capture[2],
+                isCapture: true,
+                piece: piece
+              });
+            });
+            
+            // Movimentos simples (apenas se não houver capturas)
+            if(captures.length === 0) {
+              moves.forEach(move => {
+                allMoves.push({
+                  from: [r, c],
+                  to: [move[0], move[1]],
+                  captures: [],
+                  isCapture: false,
+                  piece: piece
+                });
+              });
+            }
+          }
+        }
+      }
+      
+      // Se não há movimentos, jogo termina
+      if(allCaptures.length === 0 && allMoves.length === 0) {
+        $('status').innerText = 'Status: jogo terminado — sem movimentos para ' + side;
+        log('Sem movimentos para ' + side);
+        return;
+      }
+      
+      // Escolhe movimento baseado na dificuldade
+      let selectedMove;
+      
+      if(allCaptures.length > 0) {
+        // Sempre prioriza capturas
+        if(difficulty === 'easy') {
+          // Fácil: escolhe captura aleatória
+          selectedMove = allCaptures[Math.floor(Math.random() * allCaptures.length)];
+        } else if(difficulty === 'hard') {
+          // Difícil: prioriza capturas que resultam em dama ou capturam damas
+          const scoredCaptures = allCaptures.map(move => {
+            let score = move.captures.length; // Mais capturas = melhor
+            
+            // Bonus por capturar damas
+            move.captures.forEach(([cr, cc]) => {
+              if(gameState.board[cr][cc].isKing) score += 3;
+            });
+            
+            // Bonus por se tornar dama
+            const [tr, tc] = move.to;
+            if(!move.piece.isKing && 
+               ((side === 'agent' && tr === 0) || (side === 'hacker' && tr === 7))) {
+              score += 2;
+            }
+            
+            return {move, score};
+          });
+          
+          scoredCaptures.sort((a, b) => b.score - a.score);
+          selectedMove = scoredCaptures[0].move;
+        } else {
+          // Normal: escolhe captura com mais peças capturadas
+          selectedMove = allCaptures.reduce((best, current) => 
+            current.captures.length > best.captures.length ? current : best
+          );
+        }
+      } else {
+        // Movimentos simples
+        if(difficulty === 'easy') {
+          // Fácil: movimento aleatório
+          selectedMove = allMoves[Math.floor(Math.random() * allMoves.length)];
+        } else if(difficulty === 'hard') {
+          // Difícil: prioriza movimentos que avançam para se tornar dama
+          const scoredMoves = allMoves.map(move => {
+            let score = 0;
+            const [tr, tc] = move.to;
+            
+            // Avançar para se tornar dama
+            if(!move.piece.isKing) {
+              if(side === 'agent' && tr < 4) score += (7 - tr); // Quanto mais perto do topo, melhor
+              if(side === 'hacker' && tr > 3) score += tr; // Quanto mais perto da base, melhor
+            }
+            
+            // Movimentos de dama para o centro
+            if(move.piece.isKing) {
+              const centerDist = Math.abs(3.5 - tr) + Math.abs(3.5 - tc);
+              score += (7 - centerDist); // Mais perto do centro = melhor
+            }
+            
+            return {move, score};
+          });
+          
+          scoredMoves.sort((a, b) => b.score - a.score);
+          selectedMove = scoredMoves[0].move;
+        } else {
+          // Normal: movimento aleatório
+          selectedMove = allMoves[Math.floor(Math.random() * allMoves.length)];
+        }
+      }
+      
+      makeMove(
+        selectedMove.from[0], selectedMove.from[1],
+        selectedMove.to[0], selectedMove.to[1],
+        selectedMove.isCapture,
+        selectedMove.captures
+      );
+    }
+
+    // Após jogador mover, se for vez da IA, executa com pequeno delay visual
+    function maybeAIMove(){
+      if(gameState.turn !== playerSide){
+        setTimeout(() => { 
+          aiMakeMove(); 
+          $('status').innerText = 'Status: turno de ' + gameState.turn + 
+            (gameState.turn === playerSide ? ' — sua vez.' : ' — IA jogando...'); 
+        }, 350);
+      }
+    }
+
+    // Eventos dos botões
+    $('newBtn').addEventListener('click', ()=>{
+      playerSide = $('sideSelect').value === 'agent' ? 'agent' : 'hacker';
+      difficulty = $('difficultySelect').value;
+      initGame();
+      // Se jogador escolheu ser hacker e for turno do agent, IA joga primeiro
+      if(gameState.turn !== playerSide) maybeAIMove();
+    });
+    
+    $('undoBtn').addEventListener('click', ()=>{
+      if(history.length === 0) return; 
+      gameState = history.pop(); 
+      render(); 
+      $('status').innerText = 'Desfeito. Turno: ' + gameState.turn; 
+      log('Desfeita última jogada.'); 
+    });
+    
+    $('resignBtn').addEventListener('click', ()=>{ 
+      log('Jogador desistiu.'); 
+      $('status').innerText = 'Você desistiu.'; 
+      createBoardCells(); 
+      gameState = {board: Array.from({length:8}, () => Array(8).fill(null)), turn: 'agent'}; 
+      render(); 
+    });
+
+    // Inicialização da interface
+    createBoardCells();
+  </script>
+</body>
+</html>
